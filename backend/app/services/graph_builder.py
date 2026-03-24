@@ -497,4 +497,3 @@ class GraphBuilderService:
     def delete_graph(self, graph_id: str):
         """Delete graph"""
         self.client.graph.delete(graph_id=graph_id)
-

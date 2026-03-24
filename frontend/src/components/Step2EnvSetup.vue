@@ -501,7 +501,7 @@
                       </span>
                     </div>
                     <div class="auto-desc">
-                      <p class="highlight-tip" @click="useCustomRounds = true">For first-time runs, we strongly recommend switching to ‘Custom mode’ toreduce the number of simulation rounds for a quick preview and lower error risk ➝</p>
+                      <p class="highlight-tip" @click="useCustomRounds = true">For first-time runs, we strongly recommend switching to 'Custom mode' to reduce the number of simulation rounds for a quick preview and lower error risk ➝</p>
                     </div>
                   </div>
                 </div>
@@ -1343,7 +1343,7 @@ onUnmounted(() => {
 
 .profile-card {
   background: #FAFAFA;
-  border: 1px solid #E5E5E5;
+  border: 1px solid #E5E7EB;
   border-radius: 6px;
   padding: 14px;
   cursor: pointer;
@@ -2563,11 +2563,6 @@ onUnmounted(() => {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
 }
 
 .fade-enter-from,
