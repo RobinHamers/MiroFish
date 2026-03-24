@@ -63,6 +63,7 @@ class OasisAgentProfile:
             "user_id": self.user_id,
             "username": self.user_name,  # OASIS library requires field name 'username' (no underscore)
             "realname": self.name,
+            "description": self.bio,
             "bio": self.bio,
             "persona": self.persona,
             "karma": self.karma,
@@ -91,6 +92,7 @@ class OasisAgentProfile:
             "user_id": self.user_id,
             "username": self.user_name,  # OASIS library requires field name 'username' (no underscore)
             "name": self.name,
+            "description": self.bio,
             "bio": self.bio,
             "persona": self.persona,
             "friend_count": self.friend_count,
@@ -481,7 +483,7 @@ class OasisProfileGenerator:
                 context_parts.append("### Facts Retrieved from Zep\n" + "\n".join(f"- {f}" for f in new_facts[:15]))
         
         if zep_results.get("node_summaries"):
-            context_parts.append("### Related Nodes Retrieved from Zep\n" + "\n".join(f"- {s}" for f in zep_results["node_summaries"][:10]))
+            context_parts.append("### Related Nodes Retrieved from Zep\n" + "\n".join(f"- {s}" for s in zep_results["node_summaries"][:10]))
         
         return "\n\n".join(context_parts)
     
@@ -1081,17 +1083,20 @@ Important:
             writer = csv.writer(f)
             
             # Write headers required by OASIS
-            headers = ['user_id', 'username', 'name', 'bio', 'user_char', 'friend_count', 'follower_count', 'statuses_count', 'created_at']
+            # OASIS library expects 'description' field (usually maps to bio)
+            headers = ['user_id', 'username', 'name', 'description', 'bio', 'user_char', 'friend_count', 'follower_count', 'statuses_count', 'created_at']
             writer.writerow(headers)
 
             # Write data rows
             for idx, profile in enumerate(profiles):
                 user_char = (profile.persona or f"{profile.name} is a participant in social discussions.").replace('\n', ' ').replace('\r', ' ')
+                bio_clean = profile.bio.replace('\n', ' ').replace('\r', ' ')
                 row = [
                     profile.user_id if profile.user_id is not None else idx,
                     profile.user_name,
                     profile.name,
-                    profile.bio.replace('\n', ' ').replace('\r', ' '),
+                    bio_clean, # description field
+                    bio_clean, # bio field
                     user_char,
                     profile.friend_count,
                     profile.follower_count,
@@ -1147,11 +1152,13 @@ Important:
         """
         data = []
         for idx, profile in enumerate(profiles):
+            bio_clean = profile.bio[:150] if profile.bio else f"{profile.name}"
             item = {
                 "user_id": profile.user_id if profile.user_id is not None else idx,
                 "username": profile.user_name,
                 "realname": profile.name,
-                "bio": profile.bio[:150] if profile.bio else f"{profile.name}",
+                "description": bio_clean,
+                "bio": bio_clean,
                 "persona": profile.persona or f"{profile.name} is a participant in social discussions.",
                 "karma": profile.karma if profile.karma else 1000,
                 "created_at": profile.created_at,
