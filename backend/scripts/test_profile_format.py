@@ -1,4 +1,6 @@
 """
+DEPRECATED: Use pytest tests in tests/ instead (run: python -m pytest tests/ -v).
+
 Test if Profile format generation meets OASIS requirements
 Validates:
 1. Twitter Profile generation CSV format
@@ -86,7 +88,7 @@ def test_profile_formats():
             print(f"     {key}: {value}")
         
         # Validate required fields
-        required_twitter_fields = ['user_id', 'user_name', 'name', 'bio', 
+        required_twitter_fields = ['user_id', 'username', 'name', 'bio', 'user_char',
                                    'friend_count', 'follower_count', 'statuses_count', 'created_at']
         missing = set(required_twitter_fields) - set(rows[0].keys())
         if missing:

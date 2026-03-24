@@ -398,7 +398,7 @@ class OasisProfileGenerator:
             if results["facts"]:
                 context_parts.append("Facts:\n" + "\n".join(f"- {f}" for f in results["facts"][:20]))
             if results["node_summaries"]:
-                context_parts.append("Related Entities:\n" + "\n".join(f"- {s}" for f in results["node_summaries"][:10]))
+                context_parts.append("Related Entities:\n" + "\n".join(f"- {s}" for s in results["node_summaries"][:10]))
             results["context"] = "\n\n".join(context_parts)
             
             logger.info(f"Zep hybrid retrieval complete: {entity_name}, retrieved {len(results['facts'])} facts, {len(results['node_summaries'])} related nodes")
@@ -1081,16 +1081,18 @@ Important:
             writer = csv.writer(f)
             
             # Write headers required by OASIS
-            headers = ['user_id', 'user_name', 'name', 'bio', 'friend_count', 'follower_count', 'statuses_count', 'created_at']
+            headers = ['user_id', 'username', 'name', 'bio', 'user_char', 'friend_count', 'follower_count', 'statuses_count', 'created_at']
             writer.writerow(headers)
-            
+
             # Write data rows
             for idx, profile in enumerate(profiles):
+                user_char = (profile.persona or f"{profile.name} is a participant in social discussions.").replace('\n', ' ').replace('\r', ' ')
                 row = [
                     profile.user_id if profile.user_id is not None else idx,
                     profile.user_name,
                     profile.name,
                     profile.bio.replace('\n', ' ').replace('\r', ' '),
+                    user_char,
                     profile.friend_count,
                     profile.follower_count,
                     profile.statuses_count,

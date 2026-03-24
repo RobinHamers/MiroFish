@@ -4,6 +4,7 @@ API 2: Build Standalone Graph using Zep API
 """
 
 import os
+import re
 import uuid
 import time
 import threading
@@ -17,6 +18,24 @@ from ..config import Config
 from ..models.task import TaskManager, TaskStatus
 from ..utils.zep_paging import fetch_all_nodes, fetch_all_edges
 from .text_processor import TextProcessor
+
+
+def to_pascal_case(name: str) -> str:
+    """Convert any name format to PascalCase (required by Zep API for entity types)."""
+    words = re.split(r'[_\-\s]+', name)
+    split_words = []
+    for word in words:
+        split_words.extend(re.sub(r'([a-z])([A-Z])', r'\1 \2', word).split())
+    return ''.join(w.capitalize() for w in split_words if w)
+
+
+def to_screaming_snake_case(name: str) -> str:
+    """Convert any name format to SCREAMING_SNAKE_CASE (required by Zep API for edge types)."""
+    words = re.split(r'[_\-\s]+', name)
+    split_words = []
+    for word in words:
+        split_words.extend(re.sub(r'([a-z])([A-Z])', r'\1 \2', word).split())
+    return '_'.join(w.upper() for w in split_words if w)
 
 
 @dataclass
@@ -215,11 +234,16 @@ class GraphBuilderService:
             if attr_name.lower() in RESERVED_NAMES:
                 return f"entity_{attr_name}"
             return attr_name
-        
+
         # Dynamically create entity types
+        # Build a mapping from original entity names to PascalCase for edge source/target resolution
+        entity_name_map = {}
+        for entity_def in ontology.get("entity_types", []):
+            entity_name_map[entity_def["name"]] = to_pascal_case(entity_def["name"])
+
         entity_types = {}
         for entity_def in ontology.get("entity_types", []):
-            name = entity_def["name"]
+            name = to_pascal_case(entity_def["name"])
             description = entity_def.get("description", f"A {name} entity.")
             
             # Create attribute dict and type annotations (required by Pydantic v2)
@@ -243,7 +267,7 @@ class GraphBuilderService:
         # Dynamically create edge types
         edge_definitions = {}
         for edge_def in ontology.get("edge_types", []):
-            name = edge_def["name"]
+            name = to_screaming_snake_case(edge_def["name"])
             description = edge_def.get("description", f"A {name} relationship.")
             
             # Create attribute dict and type annotations
@@ -260,17 +284,18 @@ class GraphBuilderService:
             attrs["__annotations__"] = annotations
 
             # Dynamically create class
-            class_name = ''.join(word.capitalize() for word in name.split('_'))
-            edge_class = type(class_name, (EdgeModel,), attrs)
+            edge_class = type(name, (EdgeModel,), attrs)
             edge_class.__doc__ = description
             
             # Build source_targets
             source_targets = []
             for st in edge_def.get("source_targets", []):
+                raw_source = st.get("source", "Entity")
+                raw_target = st.get("target", "Entity")
                 source_targets.append(
                     EntityEdgeSourceTarget(
-                        source=st.get("source", "Entity"),
-                        target=st.get("target", "Entity")
+                        source=entity_name_map.get(raw_source, to_pascal_case(raw_source)),
+                        target=entity_name_map.get(raw_target, to_pascal_case(raw_target))
                     )
                 )
             
