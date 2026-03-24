@@ -110,7 +110,7 @@
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                   <circle cx="12" cy="7" r="4"></circle>
                 </svg>
-                <span>{{ selectedAgent ? selectedAgent.username : 'Chat with any individual in the world' }}</span>
+                <span>{{ selectedAgent ? selectedAgent.username : 'Chat with world individuals' }}</span>
                 <svg class="dropdown-arrow" :class="{ open: showAgentDropdown }" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>
@@ -141,7 +141,7 @@
                 <path d="M9 11l3 3L22 4"></path>
                 <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
               </svg>
-              <span>Send Survey to the World</span>
+              <span>Survey the World</span>
             </button>
           </div>
         </div>
@@ -411,7 +411,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick, h, reactive } from 'vue'
 import { chatWithReport, getReport, getAgentLog } from '../api/report'
 import { interviewAgents, getSimulationProfilesRealtime } from '../api/simulation'
 
@@ -554,13 +554,22 @@ const formatTime = (timestamp) => {
 const renderMarkdown = (content) => {
   if (!content) return ''
   
+  // Remove leading h2 heading (## xxx), since the section title is already shown in the outer container
   let processedContent = content.replace(/^##\s+.+\n+/, '')
+
+  // Process code blocks
   let html = processedContent.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="code-block"><code>$2</code></pre>')
+
+  // Process inline code
   html = html.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
+
+  // Process headings
   html = html.replace(/^#### (.+)$/gm, '<h5 class="md-h5">$1</h5>')
   html = html.replace(/^### (.+)$/gm, '<h4 class="md-h4">$1</h4>')
   html = html.replace(/^## (.+)$/gm, '<h3 class="md-h3">$1</h3>')
   html = html.replace(/^# (.+)$/gm, '<h2 class="md-h2">$1</h2>')
+
+  // Process blockquotes
   html = html.replace(/^> (.+)$/gm, '<blockquote class="md-quote">$1</blockquote>')
   
   // Process lists - support nested lists
@@ -586,14 +595,23 @@ const renderMarkdown = (content) => {
   // Clean whitespace before list closing tags
   html = html.replace(/\s+<\/ul>/g, '</ul>')
   html = html.replace(/\s+<\/ol>/g, '</ol>')
-  
+
+  // Process bold and italic
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
   html = html.replace(/_(.+?)_/g, '<em>$1</em>')
+
+  // Process horizontal rules
   html = html.replace(/^---$/gm, '<hr class="md-hr">')
+
+  // Process line breaks - empty lines become paragraph breaks, single newlines become <br>
   html = html.replace(/\n\n/g, '</p><p class="md-p">')
   html = html.replace(/\n/g, '<br>')
+
+  // Wrap in paragraphs
   html = '<p class="md-p">' + html + '</p>'
+
+  // Clean up empty paragraphs
   html = html.replace(/<p class="md-p"><\/p>/g, '')
   html = html.replace(/<p class="md-p">(<h[2-5])/g, '$1')
   html = html.replace(/(<\/h[2-5]>)<\/p>/g, '$1')
@@ -708,7 +726,7 @@ const sendToReportAgent = async (message) => {
 
 const sendToAgent = async (message) => {
   if (!selectedAgent.value || selectedAgentIndex.value === null) {
-    throw new Error('Please select a simulated individual first')
+    throw new Error('Please select an individual first')
   }
   
   addLog(`Sent to ${selectedAgent.value.username}: ${message.substring(0, 50)}...`)
@@ -733,17 +751,13 @@ const sendToAgent = async (message) => {
   })
   
   if (res.success && res.data) {
-    // Correct data path: res.data.result.results is an object dictionary
-    // Format: {"twitter_0": {...}, "reddit_0": {...}} or single platform {"reddit_0": {...}}
     const resultData = res.data.result || res.data
     const resultsDict = resultData.results || resultData
 
-    // Convert object dictionary to array, preferring reddit platform replies
     let responseContent = null
     const agentId = selectedAgentIndex.value
     
     if (typeof resultsDict === 'object' && !Array.isArray(resultsDict)) {
-      // Prefer reddit platform reply, then twitter
       const redditKey = `reddit_${agentId}`
       const twitterKey = `twitter_${agentId}`
       const agentResult = resultsDict[redditKey] || resultsDict[twitterKey] || Object.values(resultsDict)[0]
@@ -751,7 +765,6 @@ const sendToAgent = async (message) => {
         responseContent = agentResult.response || agentResult.answer
       }
     } else if (Array.isArray(resultsDict) && resultsDict.length > 0) {
-      // Compatible with array format
       responseContent = resultsDict[0].response || resultsDict[0].answer
     }
     
@@ -817,19 +830,15 @@ const submitSurvey = async () => {
     })
     
     if (res.success && res.data) {
-      // Correct data path: res.data.result.results is an object dictionary
-      // Format: {"twitter_0": {...}, "reddit_0": {...}, "twitter_1": {...}, ...}
       const resultData = res.data.result || res.data
       const resultsDict = resultData.results || resultData
       
-      // Convert object dictionary to array format
       const surveyResultsList = []
       
       for (const interview of interviews) {
         const agentIdx = interview.agent_id
         const agent = profiles.value[agentIdx]
         
-        // Prefer reddit platform reply, then twitter
         let responseContent = 'No response'
         
         if (typeof resultsDict === 'object' && !Array.isArray(resultsDict)) {
@@ -840,7 +849,6 @@ const submitSurvey = async () => {
             responseContent = agentResult.response || agentResult.answer || 'No response'
           }
         } else if (Array.isArray(resultsDict)) {
-          // Compatible with array format
           const matchedResult = resultsDict.find(r => r.agent_id === agentIdx)
           if (matchedResult) {
             responseContent = matchedResult.response || matchedResult.answer || 'No response'
@@ -874,11 +882,8 @@ const loadReportData = async () => {
   
   try {
     addLog(`Loading report data: ${props.reportId}`)
-    
-    // Get report info
     const reportRes = await getReport(props.reportId)
     if (reportRes.success && reportRes.data) {
-      // Load agent logs to get report outline and sections
       await loadAgentLogs()
     }
   } catch (err) {
@@ -925,7 +930,6 @@ const loadProfiles = async () => {
   }
 }
 
-// Click outside to close dropdown
 const handleClickOutside = (e) => {
   const dropdown = document.querySelector('.agent-dropdown')
   if (dropdown && !dropdown.contains(e.target)) {
